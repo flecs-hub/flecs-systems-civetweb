@@ -93,6 +93,11 @@ void do_reply(
     mg_write(conn, msg, strlen(msg));
 }
 
+typedef struct EndpointEvalCtx {
+    EcsHttpRequest request;
+    CivetwebServerData *server_data;
+} EndpointEvalCtx;
+
 static
 int CbOnRequest(
     struct mg_connection *conn,
@@ -104,19 +109,20 @@ int CbOnRequest(
     CivetwebServerData *data = ecs_get_ptr(
         ctx->world, ctx->server_entity, ctx->data_component);
 
-    EcsHttpRequest request = {
-        .server = ctx->server_entity,
-        .method = method,
-        .url = req_info->local_uri,
-        .params = req_info->query_string,
-        .ctx = conn
+    EndpointEvalCtx eval_ctx = {
+        .request = {
+            .server = ctx->server_entity,
+            .method = method,
+            .url = req_info->local_uri,
+            .params = req_info->query_string,
+            .ctx = conn
+        },
+        .server_data = data
     };
-
-    pthread_mutex_lock(&data->lock);
 
     /* Evaluate request for all endpoints for this server */
     EcsHandle endpoint = ecs_run_system(
-        ctx->world, ctx->eval_endpoint_system, &request, ctx->server_entity);
+        ctx->world, ctx->eval_endpoint_system, 0, ctx->server_entity, &eval_ctx);
 
     if (!endpoint) {
         do_reply(conn, 404, NULL, NULL);
@@ -130,7 +136,8 @@ int CbOnRequest(
 static
 void CivetEvalEndpoints(EcsRows *rows) {
     EcsHttpReply reply = {.status = 201};
-    EcsHttpRequest *request = rows->param;
+    EndpointEvalCtx *ctx = rows->param;
+    EcsHttpRequest *request = &ctx->request;
     struct mg_connection *conn = request->ctx;
     const char *r_url = request->url;
     if (r_url[0] == '/') r_url ++;
@@ -158,8 +165,17 @@ void CivetEvalEndpoints(EcsRows *rows) {
                 } else {
                     request->relative_url = "";
                 }
+
+                if (endpoint->synchronous) {
+                    pthread_mutex_lock(&ctx->server_data->lock);
+                }
+
                 if (endpoint->action(world, entity, endpoint, request, &reply))
                 {
+                    if (endpoint->synchronous) {
+                        pthread_mutex_lock(&ctx->server_data->lock);
+                    }
+
                     if (reply.is_file) {
                         mg_send_file(conn, reply.body);
                     } else {
@@ -167,6 +183,10 @@ void CivetEvalEndpoints(EcsRows *rows) {
                     }
                     rows->interrupted_by = entity;
                     break;
+                }
+
+                if (endpoint->synchronous) {
+                    pthread_mutex_lock(&ctx->server_data->lock);
                 }
             } else {
                 continue;
@@ -285,8 +305,18 @@ void EcsSystemsCivetweb(
     ECS_COMPONENT(world, CivetwebServerData);
     ECS_SYSTEM(world, CivetInit, EcsOnSet, EcsHttpServer);
     ECS_SYSTEM(world, CivetDeinit, EcsOnRemove, CivetwebServerData);
-    ECS_SYSTEM(world, CivetServer, EcsPeriodic, CivetwebServerData);
+    ECS_SYSTEM(world, CivetServer, EcsOnFrame, CivetwebServerData);
     ECS_SYSTEM(world, CivetEvalEndpoints, EcsOnDemand, EcsHttpEndpoint);
+
+    ecs_add(world, CivetInit_h, EcsFrameworkSystem_h);
+    ecs_add(world, CivetDeinit_h, EcsFrameworkSystem_h);
+    ecs_add(world, CivetServer_h, EcsFrameworkSystem_h);
+    ecs_add(world, CivetEvalEndpoints_h, EcsFrameworkSystem_h);
+
+    ecs_commit(world, CivetInit_h);
+    ecs_commit(world, CivetDeinit_h);
+    ecs_commit(world, CivetServer_h);
+    ecs_commit(world, CivetEvalEndpoints_h);
 
     handles->CivetwebServer = CivetServer_h;
 }
