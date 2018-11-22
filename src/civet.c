@@ -128,8 +128,6 @@ int CbOnRequest(
         do_reply(conn, 404, NULL, NULL);
     }
 
-    pthread_mutex_unlock(&data->lock);
-
     return 1;
 }
 
@@ -173,7 +171,7 @@ void CivetEvalEndpoints(EcsRows *rows) {
                 if (endpoint->action(world, entity, endpoint, request, &reply))
                 {
                     if (endpoint->synchronous) {
-                        pthread_mutex_lock(&ctx->server_data->lock);
+                        pthread_mutex_unlock(&ctx->server_data->lock);
                     }
 
                     if (reply.is_file) {
@@ -186,7 +184,7 @@ void CivetEvalEndpoints(EcsRows *rows) {
                 }
 
                 if (endpoint->synchronous) {
-                    pthread_mutex_lock(&ctx->server_data->lock);
+                    pthread_mutex_unlock(&ctx->server_data->lock);
                 }
             } else {
                 continue;
@@ -308,10 +306,10 @@ void EcsSystemsCivetweb(
     ECS_SYSTEM(world, CivetServer, EcsOnFrame, CivetwebServerData);
     ECS_SYSTEM(world, CivetEvalEndpoints, EcsOnDemand, EcsHttpEndpoint);
 
-    ecs_add(world, CivetInit_h, EcsFrameworkSystem_h);
-    ecs_add(world, CivetDeinit_h, EcsFrameworkSystem_h);
-    ecs_add(world, CivetServer_h, EcsFrameworkSystem_h);
-    ecs_add(world, CivetEvalEndpoints_h, EcsFrameworkSystem_h);
+    ecs_add(world, CivetInit_h, EcsHidden_h);
+    ecs_add(world, CivetDeinit_h, EcsHidden_h);
+    ecs_add(world, CivetServer_h, EcsHidden_h);
+    ecs_add(world, CivetEvalEndpoints_h, EcsHidden_h);
 
     ecs_commit(world, CivetInit_h);
     ecs_commit(world, CivetDeinit_h);
