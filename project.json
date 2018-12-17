@@ -1,12 +1,14 @@
 {
     "id":"reflecs.systems.civetweb",
-    "type":"library",
+    "type":"package",
     "value": {
         "use": [
             "reflecs",
             "reflecs.util",
             "reflecs.components.http"
-        ],
+        ]
+    },
+    "lang.c": {        
         "lib": ["pthread", "dl"]
     }
 }
