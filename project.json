@@ -5,10 +5,11 @@
         "use": [
             "reflecs",
             "reflecs.util",
-            "reflecs.components.http"
+            "reflecs.components.http",
+            "bake.util"
         ]
     },
-    "lang.c": {        
+    "lang.c": {
         "lib": ["pthread", "dl"]
     }
 }
