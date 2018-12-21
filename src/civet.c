@@ -244,9 +244,6 @@ void CivetInit(EcsRows *rows) {
         pthread_mutex_init(&lock, NULL);
         pthread_mutex_lock(&lock);
 
-        /* Allow server object to be used as a component for endpoints */
-        ecs_add(world, entity, EcsComponent_h);
-
         /* Add component with Civetweb data */
         ecs_set(world, entity, CivetwebServerData, {
             .server = cv_server,
