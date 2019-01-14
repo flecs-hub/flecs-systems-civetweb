@@ -304,10 +304,5 @@ void EcsSystemsCivetweb(
     ecs_add(world, CivetServer_h, EcsHidden_h);
     ecs_add(world, CivetEvalEndpoints_h, EcsHidden_h);
 
-    ecs_commit(world, CivetInit_h);
-    ecs_commit(world, CivetDeinit_h);
-    ecs_commit(world, CivetServer_h);
-    ecs_commit(world, CivetEvalEndpoints_h);
-
     handles->CivetwebServer = CivetServer_h;
 }
