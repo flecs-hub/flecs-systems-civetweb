@@ -7,9 +7,9 @@
 
 typedef struct CivetwebServerCtx {
     EcsWorld *world;
-    EcsHandle server_entity;
-    EcsHandle data_component;
-    EcsHandle eval_endpoint_system;
+    EcsEntity server_entity;
+    EcsEntity data_component;
+    EcsEntity eval_endpoint_system;
 } CivetwebServerCtx;
 
 typedef struct CivetwebServerData {
@@ -117,7 +117,7 @@ int CbOnRequest(
     };
 
     /* Evaluate request for all endpoints for this server */
-    EcsHandle endpoint = ecs_run_system(
+    EcsEntity endpoint = ecs_run(
         ctx->world, ctx->eval_endpoint_system, 0, ctx->server_entity, &eval_ctx);
 
     if (!endpoint) {
@@ -138,7 +138,7 @@ void CivetEvalEndpoints(EcsRows *rows) {
 
     void *row;
     for (row = rows->first; row < rows->last; row = ecs_next(rows, row)) {
-        EcsHttpEndpoint *endpoint = ecs_column(rows, row, 0);
+        EcsHttpEndpoint *endpoint = ecs_data(rows, row, 0);
         char *e_url = endpoint->url;
         if (e_url[0] == '/') e_url ++;
         uint32_t e_url_len = strlen(e_url);
@@ -148,7 +148,7 @@ void CivetEvalEndpoints(EcsRows *rows) {
             r_url = r_url + e_url_len;
 
             if (!r_url[0] || r_url[0] == '/' || r_url == orig_r_url) {
-                EcsHandle entity = ecs_entity(row);
+                EcsEntity entity = ecs_entity(rows, row, 0);
                 EcsWorld *world = rows->world;
                 if (r_url[0]) {
                     if (r_url != orig_r_url) {
@@ -195,8 +195,8 @@ void CivetInit(EcsRows *rows) {
     EcsWorld *world = rows->world;
 
     for (row = rows->first; row < rows->last; row = ecs_next(rows, row)) {
-        EcsHandle entity = ecs_entity(row);
-        EcsHttpServer *server = ecs_column(rows, row, 0);
+        EcsEntity entity = ecs_entity(rows, row, 0);
+        EcsHttpServer *server = ecs_data(rows, row, 0);
         char port[15];
         sprintf(port, "%u", server->port);
 
@@ -229,7 +229,7 @@ void CivetInit(EcsRows *rows) {
         callbacks.log_message = CbLogMessage;
 
         /* Add server object to entity */
-        EcsHandle CivetwebServerData_h = ecs_lookup(world,"CivetwebServerData");
+        EcsEntity CivetwebServerData_h = ecs_lookup(world,"CivetwebServerData");
         CivetwebServerCtx *ctx = malloc(sizeof(CivetwebServerCtx));
         ctx->world = world;
         ctx->server_entity = entity;
@@ -264,7 +264,7 @@ static
 void CivetDeinit(EcsRows *rows) {
     void *row;
     for (row = rows->first; row < rows->last; row = ecs_next(rows, row)) {
-        CivetwebServerData *data = ecs_column(rows, row, 0);
+        CivetwebServerData *data = ecs_data(rows, row, 0);
         mg_stop(data->server);
         free(data->ctx);
         pthread_mutex_unlock(&data->lock);
@@ -275,7 +275,7 @@ static
 void CivetServer(EcsRows *rows) {
     void *row;
     for (row = rows->first; row < rows->last; row = ecs_next(rows, row)) {
-        CivetwebServerData *data = ecs_column(rows, row, 0);
+        CivetwebServerData *data = ecs_data(rows, row, 0);
         pthread_mutex_unlock(&data->lock);
 
         /* Let workers access state */

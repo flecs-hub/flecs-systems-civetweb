@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 typedef struct EcsSystemsCivetwebHandles {
-   EcsHandle CivetwebServer;
+   EcsEntity CivetwebServer;
 } EcsSystemsCivetwebHandles;
 
 void EcsSystemsCivetweb(
