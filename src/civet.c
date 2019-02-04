@@ -361,9 +361,9 @@ void EcsSystemsCivetweb(
     ECS_IMPORT(world, EcsComponentsHttp, 0);
     ECS_COMPONENT(world, CivetServerComponent);
     ECS_SYSTEM(world, CivetInit, EcsOnSet, EcsHttpServer, ID.CivetServerComponent);
+    ECS_SYSTEM(world, CivetRegisterEndpoint, EcsOnSet, EcsHttpEndpoint, ID.CivetServerComponent);
     ECS_SYSTEM(world, CivetDeinit, EcsOnRemove, CivetServerComponent);
     ECS_SYSTEM(world, CivetServer, EcsOnFrame, CivetServerComponent);
-    ECS_SYSTEM(world, CivetRegisterEndpoint, EcsOnSet, EcsHttpEndpoint, ID.CivetServerComponent);
 
     ecs_add(world, CivetInit_h, EcsHidden_h);
     ecs_add(world, CivetDeinit_h, EcsHidden_h);
