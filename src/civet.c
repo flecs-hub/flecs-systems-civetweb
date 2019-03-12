@@ -218,15 +218,15 @@ int CbOnRequest(
 
 static
 void CivetInit(EcsRows *rows) {
-    void *row;
     EcsWorld *world = rows->world;
+    EcsEntity *entities = ecs_column(rows, EcsEntity, 0);
+    EcsHttpServer *server = ecs_column(rows, EcsHttpServer, 1);
+    EcsType TCivetServerComponent = ecs_column_component(rows, 2);
 
-    for (row = rows->first; row < rows->last; row = ecs_next(rows, row)) {
-        EcsEntity entity = ecs_entity(rows, row, 0);
-        EcsHttpServer *server = ecs_data(rows, row, 0);
-        EcsEntity CivetServerComponent_h = ecs_component(rows, 1);
+    int i;
+    for (i = rows->begin; i < rows->end; i ++) {
         char port[15];
-        sprintf(port, "%u", server->port);
+        sprintf(port, "%u", server[i].port);
 
         const char *options[] = {
             "document_root", ".",
@@ -268,7 +268,7 @@ void CivetInit(EcsRows *rows) {
         pthread_cond_init(&server_data->ecs_cond, NULL);
 
         /* Add component with Civetweb data */
-        ecs_set(world, entity, CivetServerComponent, {
+        ecs_set(world, entities[i], CivetServerComponent, {
             .server_data = server_data
         });
 
@@ -285,10 +285,10 @@ void CivetInit(EcsRows *rows) {
 
 static
 void CivetDeinit(EcsRows *rows) {
-    void *row;
-    for (row = rows->first; row < rows->last; row = ecs_next(rows, row)) {
-        CivetServerComponent *c = ecs_data(rows, row, 0);
-        CivetServerData *data = c->server_data;
+    CivetServerComponent *c = ecs_column(rows, CivetServerComponent, 1);
+    int i;
+    for (i = rows->begin; i < rows->end; i ++) {
+        CivetServerData *data = c[i].server_data;
         mg_stop(data->server);
         pthread_mutex_unlock(&data->ecs_lock);
         pthread_mutex_destroy(&data->ecs_lock);
@@ -299,10 +299,10 @@ void CivetDeinit(EcsRows *rows) {
 
 static
 void CivetServer(EcsRows *rows) {
-    void *row;
-    for (row = rows->first; row < rows->last; row = ecs_next(rows, row)) {
-        CivetServerComponent *c = ecs_data(rows, row, 0);
-        CivetServerData *data = c->server_data;
+    CivetServerComponent *c = ecs_column(rows, CivetServerComponent, 1);
+    int i;
+    for (i = rows->begin; i < rows->end; i++) {
+        CivetServerData *data = c[i].server_data;
 
         if (data->requests_waiting) {
             pthread_mutex_unlock(&data->ecs_lock);
@@ -315,13 +315,13 @@ static
 EcsEntity find_server(
     EcsWorld *world,
     EcsEntity ep,
-    EcsEntity CivetServerComponent_h)
+    EcsEntity TCivetServerComponent)
 {
     EcsEntity e;
     uint32_t i;
 
     for (i = 0; (e = ecs_get_component(world, ep, i)); i ++) {
-        if (ecs_has(world, e, CivetServerComponent_h)) {
+        if (ecs_has(world, e, CivetServerComponent)) {
             return e;
         }
     }
@@ -331,19 +331,22 @@ EcsEntity find_server(
 
 static
 void CivetRegisterEndpoint(EcsRows *rows) {
-    void *row;
-    for (row = rows->first; row < rows->last; row = ecs_next(rows, row)) {
-        EcsHttpEndpoint *ep = ecs_data(rows, row, 0);
-        EcsEntity entity = ecs_entity(rows, row, 0);
-        EcsEntity CivetServerComponent_h = ecs_component(rows, 1);
-        EcsEntity server = find_server(rows->world, entity, CivetServerComponent_h);
+    EcsEntity *entities = ecs_column(rows, EcsEntity, 0);
+    EcsHttpEndpoint *ep = ecs_column(rows, EcsHttpEndpoint, 1);
+    EcsType TCivetServerComponent = ecs_column_type(rows, 2);
+
+    int i;
+    for (i = rows->begin; i < rows->end; i ++) {
+        EcsEntity entity = entities[i];
+
+        EcsEntity server = find_server(rows->world, entity, TCivetServerComponent);
         if (server) {
-            CivetServerComponent *c = ecs_get_ptr(rows->world, server, CivetServerComponent_h);
+            CivetServerComponent *c = ecs_get_ptr(rows->world, server, CivetServerComponent);
             CivetServerData *data = c->server_data;
 
             pthread_mutex_lock(&data->endpoint_lock);
             EcsHttpEndpoint *new_ep = ecs_array_add(&data->endpoints, &endpoint_param);
-            *new_ep = *ep;
+            *new_ep = ep[i];
             EcsEntity *new_entity = ecs_array_add(&data->endpoint_entities, &entity_param);
             *new_entity = entity;
             pthread_mutex_unlock(&data->endpoint_lock);
@@ -365,9 +368,9 @@ void EcsSystemsCivetweb(
     ECS_SYSTEM(world, CivetDeinit, EcsOnRemove, CivetServerComponent);
     ECS_SYSTEM(world, CivetServer, EcsOnFrame, CivetServerComponent);
 
-    ecs_add(world, CivetInit_h, EcsHidden_h);
-    ecs_add(world, CivetDeinit_h, EcsHidden_h);
-    ecs_add(world, CivetServer_h, EcsHidden_h);
+    ecs_add(world, ECivetInit, EcsHidden);
+    ecs_add(world, ECivetDeinit, EcsHidden);
+    ecs_add(world, ECivetServer, EcsHidden);
 
-    handles->CivetwebServer = CivetServer_h;
+    ECS_SET_SYSTEM(handles, CivetServer);
 }

@@ -1,5 +1,5 @@
-#ifndef REFLECS_SYSTEMS_CIVETWEB_H
-#define REFLECS_SYSTEMS_CIVETWEB_H
+#ifndef FLECS_SYSTEMS_CIVETWEB_H
+#define FLECS_SYSTEMS_CIVETWEB_H
 
 #include "bake_config.h"
 
@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 typedef struct EcsSystemsCivetwebHandles {
-   EcsEntity CivetwebServer;
+    ECS_DECLARE_SYSTEM(CivetServer);
 } EcsSystemsCivetwebHandles;
 
 void EcsSystemsCivetweb(
@@ -16,8 +16,8 @@ void EcsSystemsCivetweb(
     int flags,
     void *handles_out);
 
-#define EcsSystemsCivetweb_DeclareHandles(handles)\
-    EcsDeclareHandle(handles, CivetwebServer);
+#define EcsSystemsCivetweb_ImportHandles(handles)\
+    ECS_IMPORT_SYSTEM(handles, CivetServer);
 
 #ifdef __cplusplus
 }
