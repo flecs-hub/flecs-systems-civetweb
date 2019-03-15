@@ -221,7 +221,7 @@ void CivetInit(EcsRows *rows) {
     EcsWorld *world = rows->world;
     EcsEntity *entities = ecs_column(rows, EcsEntity, 0);
     EcsHttpServer *server = ecs_column(rows, EcsHttpServer, 1);
-    EcsType TCivetServerComponent = ecs_column_component(rows, 2);
+    EcsType TCivetServerComponent = ecs_column_type(rows, 2);
 
     int i;
     for (i = rows->begin; i < rows->end; i ++) {
@@ -363,14 +363,10 @@ void EcsSystemsCivetweb(
 
     ECS_IMPORT(world, EcsComponentsHttp, 0);
     ECS_COMPONENT(world, CivetServerComponent);
-    ECS_SYSTEM(world, CivetInit, EcsOnSet, EcsHttpServer, ID.CivetServerComponent);
-    ECS_SYSTEM(world, CivetRegisterEndpoint, EcsOnSet, EcsHttpEndpoint, ID.CivetServerComponent);
-    ECS_SYSTEM(world, CivetDeinit, EcsOnRemove, CivetServerComponent);
-    ECS_SYSTEM(world, CivetServer, EcsOnFrame, CivetServerComponent);
-
-    ecs_add(world, ECivetInit, EcsHidden);
-    ecs_add(world, ECivetDeinit, EcsHidden);
-    ecs_add(world, ECivetServer, EcsHidden);
+    ECS_SYSTEM(world, CivetInit, EcsOnSet, EcsHttpServer, ID.CivetServerComponent, SYSTEM.EcsHidden);
+    ECS_SYSTEM(world, CivetRegisterEndpoint, EcsOnSet, EcsHttpEndpoint, ID.CivetServerComponent, SYSTEM.EcsHidden);
+    ECS_SYSTEM(world, CivetDeinit, EcsOnRemove, CivetServerComponent, SYSTEM.EcsHidden);
+    ECS_SYSTEM(world, CivetServer, EcsOnFrame, CivetServerComponent, SYSTEM.EcsHidden);
 
     ECS_SET_SYSTEM(handles, CivetServer);
 }
