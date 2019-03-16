@@ -219,7 +219,6 @@ int CbOnRequest(
 static
 void CivetInit(EcsRows *rows) {
     EcsWorld *world = rows->world;
-    EcsEntity *entities = ecs_column(rows, EcsEntity, 0);
     EcsHttpServer *server = ecs_column(rows, EcsHttpServer, 1);
     EcsType TCivetServerComponent = ecs_column_type(rows, 2);
 
@@ -268,7 +267,7 @@ void CivetInit(EcsRows *rows) {
         pthread_cond_init(&server_data->ecs_cond, NULL);
 
         /* Add component with Civetweb data */
-        ecs_set(world, entities[i], CivetServerComponent, {
+        ecs_set(world, rows->entities[i], CivetServerComponent, {
             .server_data = server_data
         });
 
@@ -331,13 +330,12 @@ EcsEntity find_server(
 
 static
 void CivetRegisterEndpoint(EcsRows *rows) {
-    EcsEntity *entities = ecs_column(rows, EcsEntity, 0);
     EcsHttpEndpoint *ep = ecs_column(rows, EcsHttpEndpoint, 1);
     EcsType TCivetServerComponent = ecs_column_type(rows, 2);
 
     int i;
     for (i = rows->begin; i < rows->end; i ++) {
-        EcsEntity entity = entities[i];
+        EcsEntity entity = rows->entities[i];
 
         EcsEntity server = find_server(rows->world, entity, TCivetServerComponent);
         if (server) {
