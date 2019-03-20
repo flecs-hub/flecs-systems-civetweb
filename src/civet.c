@@ -223,7 +223,7 @@ void CivetInit(EcsRows *rows) {
     EcsType TCivetServerComponent = ecs_column_type(rows, 2);
 
     int i;
-    for (i = rows->begin; i < rows->end; i ++) {
+    for (i = 0; i < rows->count; i ++) {
         char port[15];
         sprintf(port, "%u", server[i].port);
 
@@ -286,7 +286,7 @@ static
 void CivetDeinit(EcsRows *rows) {
     CivetServerComponent *c = ecs_column(rows, CivetServerComponent, 1);
     int i;
-    for (i = rows->begin; i < rows->end; i ++) {
+    for (i = 0; i < rows->count; i ++) {
         CivetServerData *data = c[i].server_data;
         mg_stop(data->server);
         pthread_mutex_unlock(&data->ecs_lock);
@@ -300,7 +300,7 @@ static
 void CivetServer(EcsRows *rows) {
     CivetServerComponent *c = ecs_column(rows, CivetServerComponent, 1);
     int i;
-    for (i = rows->begin; i < rows->end; i++) {
+    for (i = 0; i < rows->count; i++) {
         CivetServerData *data = c[i].server_data;
 
         if (data->requests_waiting) {
@@ -334,7 +334,7 @@ void CivetRegisterEndpoint(EcsRows *rows) {
     EcsType TCivetServerComponent = ecs_column_type(rows, 2);
 
     int i;
-    for (i = rows->begin; i < rows->end; i ++) {
+    for (i = 0; i < rows->count; i ++) {
         EcsEntity entity = rows->entities[i];
 
         EcsEntity server = find_server(rows->world, entity, TCivetServerComponent);
