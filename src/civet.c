@@ -5,12 +5,12 @@
 
 #define INIT_REQUEST_COUNT (8)
 
-static const EcsArrayParams endpoint_param = {
+static const ecs_array_params_t endpoint_param = {
     .element_size = sizeof(EcsHttpEndpoint)
 };
 
-static const EcsArrayParams entity_param = {
-    .element_size = sizeof(EcsEntity)
+static const ecs_array_params_t entity_param = {
+    .element_size = sizeof(ecs_entity_t)
 };
 
 /* Server data allocated on heap (not in ECS). This ensures the pointer is
@@ -21,8 +21,8 @@ typedef struct CivetServerData {
     /* Cache endpoints defined in ECS, so we won't need to access the ECS system
      * when receiving a request, which would not be thread safe as civetweb does
      * not provide the option to manually control threading. */
-    EcsArray *endpoints;
-    EcsArray *endpoint_entities;
+    ecs_array_t *endpoints;
+    ecs_array_t *endpoint_entities;
     pthread_mutex_t endpoint_lock;
 
     /* Lock and condition variable protecting access to ECS data */
@@ -128,7 +128,7 @@ bool eval_endpoints(EndpointEvalCtx *ctx) {
     if (r_url[0] == '/') r_url ++;
 
     EcsHttpEndpoint *buffer = ecs_array_buffer(server_data->endpoints);
-    EcsEntity *entity_buffer = ecs_array_buffer(server_data->endpoint_entities);
+    ecs_entity_t *entity_buffer = ecs_array_buffer(server_data->endpoint_entities);
     uint32_t i, count = ecs_array_count(server_data->endpoints);
 
     for (i = 0; i < count; i ++) {
@@ -142,7 +142,7 @@ bool eval_endpoints(EndpointEvalCtx *ctx) {
             r_url = r_url + e_url_len;
 
             if (!r_url[0] || r_url[0] == '/' || r_url == orig_r_url) {
-                EcsEntity entity = entity_buffer[i];
+                ecs_entity_t entity = entity_buffer[i];
                 ecs_world_t *world = server_data->world;
                 if (r_url[0]) {
                     if (r_url != orig_r_url) {
@@ -220,7 +220,7 @@ static
 void CivetInit(ecs_rows_t *rows) {
     ecs_world_t *world = rows->world;
     EcsHttpServer *server = ecs_column(rows, EcsHttpServer, 1);
-    EcsType TCivetServerComponent = ecs_column_type(rows, 2);
+    ecs_type_t TCivetServerComponent = ecs_column_type(rows, 2);
 
     int i;
     for (i = 0; i < rows->count; i ++) {
@@ -313,12 +313,12 @@ void CivetServer(ecs_rows_t *rows) {
 }
 
 static
-EcsEntity find_server(
+ecs_entity_t find_server(
     ecs_world_t *world,
-    EcsEntity ep,
-    EcsEntity TCivetServerComponent)
+    ecs_entity_t ep,
+    ecs_entity_t TCivetServerComponent)
 {
-    EcsEntity e;
+    ecs_entity_t e;
     uint32_t i;
 
     for (i = 0; (e = ecs_get_component(world, ep, i)); i ++) {
@@ -333,13 +333,13 @@ EcsEntity find_server(
 static
 void CivetRegisterEndpoint(ecs_rows_t *rows) {
     EcsHttpEndpoint *ep = ecs_column(rows, EcsHttpEndpoint, 1);
-    EcsType TCivetServerComponent = ecs_column_type(rows, 2);
+    ecs_type_t TCivetServerComponent = ecs_column_type(rows, 2);
 
     int i;
     for (i = 0; i < rows->count; i ++) {
-        EcsEntity entity = rows->entities[i];
+        ecs_entity_t entity = rows->entities[i];
 
-        EcsEntity server = find_server(rows->world, entity, TCivetServerComponent);
+        ecs_entity_t server = find_server(rows->world, entity, TCivetServerComponent);
         if (server) {
             CivetServerComponent *c = ecs_get_ptr(rows->world, server, CivetServerComponent);
             CivetServerData *data = c->server_data;
@@ -347,7 +347,7 @@ void CivetRegisterEndpoint(ecs_rows_t *rows) {
             pthread_mutex_lock(&data->endpoint_lock);
             EcsHttpEndpoint *new_ep = ecs_array_add(&data->endpoints, &endpoint_param);
             *new_ep = ep[i];
-            EcsEntity *new_entity = ecs_array_add(&data->endpoint_entities, &entity_param);
+            ecs_entity_t *new_entity = ecs_array_add(&data->endpoint_entities, &entity_param);
             *new_entity = entity;
             pthread_mutex_unlock(&data->endpoint_lock);
         }
