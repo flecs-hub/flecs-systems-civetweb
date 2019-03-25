@@ -33,7 +33,7 @@ typedef struct CivetServerData {
     int requests_waiting;
 
     /* Access to ECS world */
-    EcsWorld *world;
+    ecs_world_t *world;
 } CivetServerData;
 
 /* ECS server component only contains a pointer to the heap structure */
@@ -143,7 +143,7 @@ bool eval_endpoints(EndpointEvalCtx *ctx) {
 
             if (!r_url[0] || r_url[0] == '/' || r_url == orig_r_url) {
                 EcsEntity entity = entity_buffer[i];
-                EcsWorld *world = server_data->world;
+                ecs_world_t *world = server_data->world;
                 if (r_url[0]) {
                     if (r_url != orig_r_url) {
                         request->relative_url = r_url + 1;
@@ -217,8 +217,8 @@ int CbOnRequest(
 }
 
 static
-void CivetInit(EcsRows *rows) {
-    EcsWorld *world = rows->world;
+void CivetInit(ecs_rows_t *rows) {
+    ecs_world_t *world = rows->world;
     EcsHttpServer *server = ecs_column(rows, EcsHttpServer, 1);
     EcsType TCivetServerComponent = ecs_column_type(rows, 2);
 
@@ -257,6 +257,8 @@ void CivetInit(EcsRows *rows) {
 
         /* Add server object to entity */
         CivetServerData *server_data = malloc(sizeof(CivetServerData));
+        ecs_assert(server_data != NULL, ECS_OUT_OF_MEMORY, NULL);
+
         server_data->world = world;
         server_data->server = mg_start(&callbacks, server_data, options);
         server_data->endpoints = ecs_array_new(&endpoint_param, 0);
@@ -283,7 +285,7 @@ void CivetInit(EcsRows *rows) {
 }
 
 static
-void CivetDeinit(EcsRows *rows) {
+void CivetDeinit(ecs_rows_t *rows) {
     CivetServerComponent *c = ecs_column(rows, CivetServerComponent, 1);
     int i;
     for (i = 0; i < rows->count; i ++) {
@@ -297,7 +299,7 @@ void CivetDeinit(EcsRows *rows) {
 }
 
 static
-void CivetServer(EcsRows *rows) {
+void CivetServer(ecs_rows_t *rows) {
     CivetServerComponent *c = ecs_column(rows, CivetServerComponent, 1);
     int i;
     for (i = 0; i < rows->count; i++) {
@@ -312,7 +314,7 @@ void CivetServer(EcsRows *rows) {
 
 static
 EcsEntity find_server(
-    EcsWorld *world,
+    ecs_world_t *world,
     EcsEntity ep,
     EcsEntity TCivetServerComponent)
 {
@@ -329,7 +331,7 @@ EcsEntity find_server(
 }
 
 static
-void CivetRegisterEndpoint(EcsRows *rows) {
+void CivetRegisterEndpoint(ecs_rows_t *rows) {
     EcsHttpEndpoint *ep = ecs_column(rows, EcsHttpEndpoint, 1);
     EcsType TCivetServerComponent = ecs_column_type(rows, 2);
 
@@ -353,7 +355,7 @@ void CivetRegisterEndpoint(EcsRows *rows) {
 }
 
 void EcsSystemsCivetweb(
-    EcsWorld *world,
+    ecs_world_t *world,
     int flags,
     void *handles_out)
 {
