@@ -256,7 +256,7 @@ void CivetInit(ecs_rows_t *rows) {
         callbacks.log_message = CbLogMessage;
 
         /* Add server object to entity */
-        CivetServerData *server_data = malloc(sizeof(CivetServerData));
+        CivetServerData *server_data = ecs_os_malloc(sizeof(CivetServerData));
         ecs_assert(server_data != NULL, ECS_OUT_OF_MEMORY, NULL);
 
         server_data->world = world;
@@ -294,7 +294,7 @@ void CivetDeinit(ecs_rows_t *rows) {
         pthread_mutex_unlock(&data->ecs_lock);
         pthread_mutex_destroy(&data->ecs_lock);
         pthread_cond_destroy(&data->ecs_cond);
-        free(data);
+        ecs_os_free(data);
     }
 }
 
@@ -368,5 +368,5 @@ void EcsSystemsCivetweb(
     ECS_SYSTEM(world, CivetDeinit, EcsOnRemove, CivetServerComponent, SYSTEM.EcsHidden);
     ECS_SYSTEM(world, CivetServer, EcsOnFrame, CivetServerComponent, SYSTEM.EcsHidden);
 
-    ECS_SET_SYSTEM(handles, CivetServer);
+    ECS_SET_ENTITY(handles, CivetServer);
 }

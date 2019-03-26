@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 typedef struct EcsSystemsCivetwebHandles {
-    ECS_DECLARE_SYSTEM(CivetServer);
+    ECS_DECLARE_ENTITY(CivetServer);
 } EcsSystemsCivetwebHandles;
 
 void EcsSystemsCivetweb(
@@ -17,7 +17,7 @@ void EcsSystemsCivetweb(
     void *handles_out);
 
 #define EcsSystemsCivetweb_ImportHandles(handles)\
-    ECS_IMPORT_SYSTEM(handles, CivetServer);
+    ECS_IMPORT_ENTITY(handles, CivetServer);
 
 #ifdef __cplusplus
 }
