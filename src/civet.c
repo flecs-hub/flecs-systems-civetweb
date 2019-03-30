@@ -366,7 +366,7 @@ void EcsSystemsCivetweb(
     ECS_SYSTEM(world, CivetInit, EcsOnSet, EcsHttpServer, ID.CivetServerComponent, SYSTEM.EcsHidden);
     ECS_SYSTEM(world, CivetRegisterEndpoint, EcsOnSet, EcsHttpEndpoint, ID.CivetServerComponent, SYSTEM.EcsHidden);
     ECS_SYSTEM(world, CivetDeinit, EcsOnRemove, CivetServerComponent, SYSTEM.EcsHidden);
-    ECS_SYSTEM(world, CivetServer, EcsOnFrame, CivetServerComponent, SYSTEM.EcsHidden);
+    ECS_SYSTEM(world, CivetServer, EcsOnUpdate, CivetServerComponent, SYSTEM.EcsHidden);
 
     ECS_SET_ENTITY(handles, CivetServer);
 }
