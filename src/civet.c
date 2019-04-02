@@ -350,6 +350,9 @@ void CivetRegisterEndpoint(ecs_rows_t *rows) {
             ecs_entity_t *new_entity = ecs_array_add(&data->endpoint_entities, &entity_param);
             *new_entity = entity;
             pthread_mutex_unlock(&data->endpoint_lock);
+        } else {
+            fprintf(stderr, 
+                "warning: no server found for endpoint '%s'\n", ep->url);
         }
     }
 }
