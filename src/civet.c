@@ -1,7 +1,6 @@
 #include <string.h>
 #include <include/civetweb.h>
 #include "civetweb.h"
-#include <pthread.h>
 
 #define INIT_REQUEST_COUNT (8)
 
