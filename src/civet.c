@@ -4,6 +4,7 @@
 
 #define INIT_REQUEST_COUNT (8)
 
+
 static const ecs_array_params_t endpoint_param = {
     .element_size = sizeof(EcsHttpEndpoint)
 };
@@ -22,11 +23,11 @@ typedef struct CivetServerData {
      * not provide the option to manually control threading. */
     ecs_array_t *endpoints;
     ecs_array_t *endpoint_entities;
-    pthread_mutex_t endpoint_lock;
+	ecs_os_mutex_t endpoint_lock;
 
     /* Lock and condition variable protecting access to ECS data */
-    pthread_mutex_t ecs_lock;
-    pthread_cond_t ecs_cond;
+	ecs_os_mutex_t ecs_lock;
+	ecs_os_cond_t ecs_cond;
 
     /* Number of requests waiting */
     int requests_waiting;
@@ -155,16 +156,16 @@ bool eval_endpoints(EndpointEvalCtx *ctx) {
 
                 if (endpoint->synchronous) {
                     ut_ainc(&server_data->requests_waiting);
-                    pthread_mutex_lock(&server_data->ecs_lock);
+                    ecs_os_mutex_lock(&server_data->ecs_lock);
                 }
 
                 handled = endpoint->action(world, entity, endpoint, request, &reply);
 
                 if (endpoint->synchronous) {
                     if (!ut_adec(&server_data->requests_waiting)) {
-                        pthread_cond_signal(&server_data->ecs_cond);
+                        ecs_os_cond_signal(&server_data->ecs_cond);
                     }
-                    pthread_mutex_unlock(&server_data->ecs_lock);
+                    ecs_os_mutex_unlock(&server_data->ecs_lock);
                 }
 
                 if (handled) {
@@ -204,9 +205,9 @@ int CbOnRequest(
     };
 
     /* Evaluate request for all endpoints for this server */
-    pthread_mutex_lock(&server_data->endpoint_lock);
+    ecs_os_mutex_lock(&server_data->endpoint_lock);
     bool handled = eval_endpoints(&eval_ctx);
-    pthread_mutex_unlock(&server_data->endpoint_lock);
+    ecs_os_mutex_unlock(&server_data->endpoint_lock);
 
     if (!handled) {
         do_reply(conn, 404, NULL, NULL);
@@ -263,16 +264,16 @@ void CivetInit(ecs_rows_t *rows) {
         server_data->endpoints = ecs_array_new(&endpoint_param, 0);
         server_data->endpoint_entities = ecs_array_new(&entity_param, 0);
         server_data->requests_waiting = 0;
-        pthread_mutex_init(&server_data->endpoint_lock, NULL);
-        pthread_mutex_init(&server_data->ecs_lock, NULL);
-        pthread_cond_init(&server_data->ecs_cond, NULL);
+        ecs_os_mutex_new(&server_data->endpoint_lock, NULL);
+        ecs_os_mutex_new(&server_data->ecs_lock, NULL);
+        ecs_os_cond_new(&server_data->ecs_cond, NULL);
 
         /* Add component with Civetweb data */
         ecs_set(world, rows->entities[i], CivetServerComponent, {
             .server_data = server_data
         });
 
-        pthread_mutex_lock(&server_data->ecs_lock);
+        ecs_os_mutex_lock(&server_data->ecs_lock);
 
         /* Set handler for requests */
         mg_set_request_handler(server_data->server, "**", CbOnRequest, server_data);
@@ -290,9 +291,9 @@ void CivetDeinit(ecs_rows_t *rows) {
     for (i = 0; i < rows->count; i ++) {
         CivetServerData *data = c[i].server_data;
         mg_stop(data->server);
-        pthread_mutex_unlock(&data->ecs_lock);
-        pthread_mutex_destroy(&data->ecs_lock);
-        pthread_cond_destroy(&data->ecs_cond);
+        ecs_os_mutex_unlock(&data->ecs_lock);
+        ecs_os_mutex_free(&data->ecs_lock);
+        ecs_os_cond_free(&data->ecs_cond);
         ecs_os_free(data);
     }
 }
@@ -305,8 +306,8 @@ void CivetServer(ecs_rows_t *rows) {
         CivetServerData *data = c[i].server_data;
 
         if (data->requests_waiting) {
-            pthread_mutex_unlock(&data->ecs_lock);
-            pthread_cond_wait(&data->ecs_cond, &data->ecs_lock);
+            ecs_os_mutex_unlock(&data->ecs_lock);
+            ecs_os_cond_wait(&data->ecs_cond, &data->ecs_lock);
         }
     }
 }
@@ -343,12 +344,12 @@ void CivetRegisterEndpoint(ecs_rows_t *rows) {
             CivetServerComponent *c = ecs_get_ptr(rows->world, server, CivetServerComponent);
             CivetServerData *data = c->server_data;
 
-            pthread_mutex_lock(&data->endpoint_lock);
+            ecs_os_mutex_lock(&data->endpoint_lock);
             EcsHttpEndpoint *new_ep = ecs_array_add(&data->endpoints, &endpoint_param);
             *new_ep = ep[i];
             ecs_entity_t *new_entity = ecs_array_add(&data->endpoint_entities, &entity_param);
             *new_entity = entity;
-            pthread_mutex_unlock(&data->endpoint_lock);
+            ecs_os_mutex_unlock(&data->endpoint_lock);
         } else {
             fprintf(stderr, 
                 "warning: no server found for endpoint '%s'\n", ep->url);
