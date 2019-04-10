@@ -11,6 +11,7 @@ typedef struct EcsSystemsCivetwebHandles {
     ECS_DECLARE_ENTITY(CivetServer);
 } EcsSystemsCivetwebHandles;
 
+FLECS_SYSTEMS_CIVETWEB_EXPORT
 void EcsSystemsCivetweb(
     ecs_world_t *world,
     int flags,
