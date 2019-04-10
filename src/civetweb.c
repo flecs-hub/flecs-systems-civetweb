@@ -484,7 +484,7 @@ typedef DWORD clockid_t;
 #endif
 
 
-#if defined(_MSC_VER) && (_MSC_VER >= 1900)
+#if defined(_MSC_VER) && (_MSC_VER >= 1900) && !defined(__BAKE__)
 #define _TIMESPEC_DEFINED
 #endif
 #ifndef _TIMESPEC_DEFINED
