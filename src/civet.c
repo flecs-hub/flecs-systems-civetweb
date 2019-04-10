@@ -156,16 +156,16 @@ bool eval_endpoints(EndpointEvalCtx *ctx) {
 
                 if (endpoint->synchronous) {
                     ut_ainc(&server_data->requests_waiting);
-                    ecs_os_mutex_lock(&server_data->ecs_lock);
+                    ecs_os_mutex_lock(server_data->ecs_lock);
                 }
 
                 handled = endpoint->action(world, entity, endpoint, request, &reply);
 
                 if (endpoint->synchronous) {
                     if (!ut_adec(&server_data->requests_waiting)) {
-                        ecs_os_cond_signal(&server_data->ecs_cond);
+                        ecs_os_cond_signal(server_data->ecs_cond);
                     }
-                    ecs_os_mutex_unlock(&server_data->ecs_lock);
+                    ecs_os_mutex_unlock(server_data->ecs_lock);
                 }
 
                 if (handled) {
@@ -205,9 +205,9 @@ int CbOnRequest(
     };
 
     /* Evaluate request for all endpoints for this server */
-    ecs_os_mutex_lock(&server_data->endpoint_lock);
+    ecs_os_mutex_lock(server_data->endpoint_lock);
     bool handled = eval_endpoints(&eval_ctx);
-    ecs_os_mutex_unlock(&server_data->endpoint_lock);
+    ecs_os_mutex_unlock(server_data->endpoint_lock);
 
     if (!handled) {
         do_reply(conn, 404, NULL, NULL);
@@ -264,16 +264,16 @@ void CivetInit(ecs_rows_t *rows) {
         server_data->endpoints = ecs_array_new(&endpoint_param, 0);
         server_data->endpoint_entities = ecs_array_new(&entity_param, 0);
         server_data->requests_waiting = 0;
-        ecs_os_mutex_new(&server_data->endpoint_lock, NULL);
-        ecs_os_mutex_new(&server_data->ecs_lock, NULL);
-        ecs_os_cond_new(&server_data->ecs_cond, NULL);
+		server_data->endpoint_lock = ecs_os_mutex_new();
+		server_data->ecs_lock = ecs_os_mutex_new();
+		server_data->ecs_cond = ecs_os_cond_new();
 
         /* Add component with Civetweb data */
         ecs_set(world, rows->entities[i], CivetServerComponent, {
             .server_data = server_data
         });
 
-        ecs_os_mutex_lock(&server_data->ecs_lock);
+        ecs_os_mutex_lock(server_data->ecs_lock);
 
         /* Set handler for requests */
         mg_set_request_handler(server_data->server, "**", CbOnRequest, server_data);
@@ -291,9 +291,9 @@ void CivetDeinit(ecs_rows_t *rows) {
     for (i = 0; i < rows->count; i ++) {
         CivetServerData *data = c[i].server_data;
         mg_stop(data->server);
-        ecs_os_mutex_unlock(&data->ecs_lock);
-        ecs_os_mutex_free(&data->ecs_lock);
-        ecs_os_cond_free(&data->ecs_cond);
+        ecs_os_mutex_unlock(data->ecs_lock);
+        ecs_os_mutex_free(data->ecs_lock);
+        ecs_os_cond_free(data->ecs_cond);
         ecs_os_free(data);
     }
 }
@@ -306,8 +306,8 @@ void CivetServer(ecs_rows_t *rows) {
         CivetServerData *data = c[i].server_data;
 
         if (data->requests_waiting) {
-            ecs_os_mutex_unlock(&data->ecs_lock);
-            ecs_os_cond_wait(&data->ecs_cond, &data->ecs_lock);
+            ecs_os_mutex_unlock(data->ecs_lock);
+            ecs_os_cond_wait(data->ecs_cond, data->ecs_lock);
         }
     }
 }
@@ -344,12 +344,12 @@ void CivetRegisterEndpoint(ecs_rows_t *rows) {
             CivetServerComponent *c = ecs_get_ptr(rows->world, server, CivetServerComponent);
             CivetServerData *data = c->server_data;
 
-            ecs_os_mutex_lock(&data->endpoint_lock);
+            ecs_os_mutex_lock(data->endpoint_lock);
             EcsHttpEndpoint *new_ep = ecs_array_add(&data->endpoints, &endpoint_param);
             *new_ep = ep[i];
             ecs_entity_t *new_entity = ecs_array_add(&data->endpoint_entities, &entity_param);
             *new_entity = entity;
-            ecs_os_mutex_unlock(&data->endpoint_lock);
+            ecs_os_mutex_unlock(data->endpoint_lock);
         } else {
             fprintf(stderr, 
                 "warning: no server found for endpoint '%s'\n", ep->url);
