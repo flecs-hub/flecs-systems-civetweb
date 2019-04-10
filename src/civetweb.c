@@ -1547,7 +1547,8 @@ DEBUG_TRACE_FUNC(const char *func, unsigned line, const char *fmt, ...)
 
 
 #define MD5_STATIC static
-#include "md5.inl"
+//FIXME
+#include "../include/md5.inl"
 
 /* Darwin prior to 7.0 and Win32 do not have socklen_t */
 #ifdef NO_SOCKLEN_T
@@ -12165,7 +12166,8 @@ get_remote_ip(const struct mg_connection *conn)
 
 
 /* The mg_upload function is superseeded by mg_handle_form_request. */
-#include "handle_form.inl"
+//FIXME
+#include "../include/handle_form.inl"
 
 
 #if defined(MG_LEGACY_INTERFACE)
