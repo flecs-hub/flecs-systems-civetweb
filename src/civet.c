@@ -321,7 +321,7 @@ ecs_entity_t find_server(
     ecs_entity_t e;
     uint32_t i;
 
-    for (i = 0; (e = ecs_get_component(world, ep, i)); i ++) {
+    for (i = 0; (e = ecs_type_get_component(world, ecs_get_type(world, ep), i)); i ++) {
         if (ecs_has(world, e, CivetServerComponent)) {
             return e;
         }
