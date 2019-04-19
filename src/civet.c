@@ -5,11 +5,11 @@
 #define INIT_REQUEST_COUNT (8)
 
 
-static const ecs_array_params_t endpoint_param = {
+static const ecs_vector_params_t endpoint_param = {
     .element_size = sizeof(EcsHttpEndpoint)
 };
 
-static const ecs_array_params_t entity_param = {
+static const ecs_vector_params_t entity_param = {
     .element_size = sizeof(ecs_entity_t)
 };
 
@@ -21,8 +21,8 @@ typedef struct CivetServerData {
     /* Cache endpoints defined in ECS, so we won't need to access the ECS system
      * when receiving a request, which would not be thread safe as civetweb does
      * not provide the option to manually control threading. */
-    ecs_array_t *endpoints;
-    ecs_array_t *endpoint_entities;
+    ecs_vector_t *endpoints;
+    ecs_vector_t *endpoint_entities;
 	ecs_os_mutex_t endpoint_lock;
 
     /* Lock and condition variable protecting access to ECS data */
@@ -127,9 +127,9 @@ bool eval_endpoints(EndpointEvalCtx *ctx) {
     bool handled = false;
     if (r_url[0] == '/') r_url ++;
 
-    EcsHttpEndpoint *buffer = ecs_array_buffer(server_data->endpoints);
-    ecs_entity_t *entity_buffer = ecs_array_buffer(server_data->endpoint_entities);
-    uint32_t i, count = ecs_array_count(server_data->endpoints);
+    EcsHttpEndpoint *buffer = ecs_vector_buffer(server_data->endpoints);
+    ecs_entity_t *entity_buffer = ecs_vector_buffer(server_data->endpoint_entities);
+    uint32_t i, count = ecs_vector_count(server_data->endpoints);
 
     for (i = 0; i < count; i ++) {
         EcsHttpEndpoint *endpoint = &buffer[i];
@@ -261,8 +261,8 @@ void CivetInit(ecs_rows_t *rows) {
 
         server_data->world = world;
         server_data->server = mg_start(&callbacks, server_data, options);
-        server_data->endpoints = ecs_array_new(&endpoint_param, 0);
-        server_data->endpoint_entities = ecs_array_new(&entity_param, 0);
+        server_data->endpoints = ecs_vector_new(&endpoint_param, 0);
+        server_data->endpoint_entities = ecs_vector_new(&entity_param, 0);
         server_data->requests_waiting = 0;
 		server_data->endpoint_lock = ecs_os_mutex_new();
 		server_data->ecs_lock = ecs_os_mutex_new();
@@ -345,9 +345,9 @@ void CivetRegisterEndpoint(ecs_rows_t *rows) {
             CivetServerData *data = c->server_data;
 
             ecs_os_mutex_lock(data->endpoint_lock);
-            EcsHttpEndpoint *new_ep = ecs_array_add(&data->endpoints, &endpoint_param);
+            EcsHttpEndpoint *new_ep = ecs_vector_add(&data->endpoints, &endpoint_param);
             *new_ep = ep[i];
-            ecs_entity_t *new_entity = ecs_array_add(&data->endpoint_entities, &entity_param);
+            ecs_entity_t *new_entity = ecs_vector_add(&data->endpoint_entities, &entity_param);
             *new_entity = entity;
             ecs_os_mutex_unlock(data->endpoint_lock);
         } else {
