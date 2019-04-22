@@ -7,17 +7,16 @@
 extern "C" {
 #endif
 
-typedef struct EcsSystemsCivetwebHandles {
+typedef struct FlecsSystemsCivetweb {
     ECS_DECLARE_ENTITY(CivetServer);
-} EcsSystemsCivetwebHandles;
+} FlecsSystemsCivetweb;
 
 FLECS_SYSTEMS_CIVETWEB_EXPORT
-void EcsSystemsCivetweb(
+void FlecsSystemsCivetwebImport(
     ecs_world_t *world,
-    int flags,
-    void *handles_out);
+    int flags);
 
-#define EcsSystemsCivetweb_ImportHandles(handles)\
+#define FlecsSystemsCivetwebImportHandles(handles)\
     ECS_IMPORT_ENTITY(handles, CivetServer);
 
 #ifdef __cplusplus

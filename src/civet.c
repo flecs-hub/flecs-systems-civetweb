@@ -357,14 +357,13 @@ void CivetRegisterEndpoint(ecs_rows_t *rows) {
     }
 }
 
-void EcsSystemsCivetweb(
+void FlecsSystemsCivetwebImport(
     ecs_world_t *world,
-    int flags,
-    void *handles_out)
+    int flags)
 {
-    EcsSystemsCivetwebHandles *handles = handles_out;
+    ECS_IMPORT(world, FlecsComponentsHttp, 0);
+    ECS_MODULE(world, FlecsSystemsCivetweb);
 
-    ECS_IMPORT(world, EcsComponentsHttp, 0);
     ECS_COMPONENT(world, CivetServerComponent);
     ECS_SYSTEM(world, CivetInit, EcsOnSet, EcsHttpServer, ID.CivetServerComponent, SYSTEM.EcsHidden);
     ECS_SYSTEM(world, CivetRegisterEndpoint, EcsOnSet, EcsHttpEndpoint, ID.CivetServerComponent, SYSTEM.EcsHidden);
