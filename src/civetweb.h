@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017 the Civetweb developers
+/* Copyright (c) 2013-2018 the Civetweb developers
  * Copyright (c) 2004-2013 Sergey Lyubka
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,9 +23,9 @@
 #ifndef CIVETWEB_HEADER_INCLUDED
 #define CIVETWEB_HEADER_INCLUDED
 
-#define CIVETWEB_VERSION "1.11"
+#define CIVETWEB_VERSION "1.12"
 #define CIVETWEB_VERSION_MAJOR (1)
-#define CIVETWEB_VERSION_MINOR (11)
+#define CIVETWEB_VERSION_MINOR (12)
 #define CIVETWEB_VERSION_PATCH (0)
 
 #ifndef CIVETWEB_API
@@ -44,8 +44,8 @@
 #endif
 #endif
 
-#include <stdio.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -93,6 +93,10 @@ enum {
 	/* Collect server status information. */
 	/* Will only work, if USE_SERVER_STATS is set. */
 	MG_FEATURES_STATS = 0x100u,
+
+	/* Support on-the-fly compression. */
+	/* Will only work, if USE_ZLIB is set. */
+	MG_FEATURES_COMPRESSION = 0x200u,
 
 	/* Collect server status information. */
 	/* Will only work, if USE_SERVER_STATS is set. */
@@ -344,20 +348,39 @@ struct mg_callbacks {
 	     ctx: context handle */
 	void (*init_context)(const struct mg_context *ctx);
 
-	/* Called when a new worker thread is initialized.
-	   Parameters:
-	     ctx: context handle
-	     thread_type:
-	       0 indicates the master thread
-	       1 indicates a worker thread handling client connections
-	       2 indicates an internal helper thread (timer thread)
-	       */
-	void (*init_thread)(const struct mg_context *ctx, int thread_type);
-
 	/* Called when civetweb context is deleted.
-	   Parameters:
-	     ctx: context handle */
+	Parameters:
+	ctx: context handle */
 	void (*exit_context)(const struct mg_context *ctx);
+
+	/* Called when a new worker thread is initialized.
+	 * Parameters:
+	 *   ctx: context handle
+	 *   thread_type:
+	 *     0 indicates the master thread
+	 *     1 indicates a worker thread handling client connections
+	 *     2 indicates an internal helper thread (timer thread)
+	 * Return value:
+	 *   This function returns a user supplied pointer. The pointer is assigned
+	 *   to the thread and can be obtained from the mg_connection object using
+	 *   mg_get_thread_pointer in all server callbacks. Note: A connection and
+	 *   a thread are not directly related. Threads will serve several different
+	 *   connections, and data from a single connection may call different
+	 *   callbacks using different threads. The thread pointer can be obtained
+	 *   in a callback handler, but should not be stored beyond the scope of
+	 *   one call to one callback.
+	 */
+	void *(*init_thread)(const struct mg_context *ctx, int thread_type);
+
+	/* Called when a worker exits.
+	 * The parameters "ctx" and "thread_type" correspond to the "init_thread"
+	 * call. The  "thread_pointer" parameter is the value returned by
+	 * "init_thread".
+	 */
+	void (*exit_thread)(const struct mg_context *ctx,
+	                    int thread_type,
+	                    void *thread_pointer);
+
 
 	/* Called when initializing a new connection object.
 	 * Can be used to initialize the connection specific user data
@@ -595,7 +618,19 @@ mg_get_context(const struct mg_connection *conn);
 CIVETWEB_API void *mg_get_user_data(const struct mg_context *ctx);
 
 
+/* Get user defined thread pointer for server threads (see init_thread). */
+CIVETWEB_API void *mg_get_thread_pointer(const struct mg_connection *conn);
+
+
 /* Set user data for the current connection. */
+/* Note: This function is deprecated. Use the init_connection callback
+   instead to initialize the user connection data pointer. It is
+   reccomended to supply a pointer to some user defined data structure
+   as conn_data initializer in init_connection. In case it is required
+   to change some data after the init_connection call, store another
+   data pointer in the user defined data structure and modify that
+   pointer. In either case, after the init_connection callback, only
+   calls to mg_get_user_connection_data should be required. */
 CIVETWEB_API void mg_set_user_connection_data(struct mg_connection *conn,
                                               void *data);
 
@@ -669,7 +704,7 @@ enum {
 CIVETWEB_API const struct mg_option *mg_get_valid_options(void);
 
 
-struct mg_server_ports {
+struct mg_server_port {
 	int protocol;    /* 1 = IPv4, 2 = IPv6, 3 = both */
 	int port;        /* port number */
 	int is_ssl;      /* https port: 0 = no, 1 = yes */
@@ -680,21 +715,26 @@ struct mg_server_ports {
 	int _reserved4;
 };
 
+/* Legacy name */
+#define mg_server_ports mg_server_port
+
 
 /* Get the list of ports that civetweb is listening on.
    The parameter size is the size of the ports array in elements.
    The caller is responsibility to allocate the required memory.
-   This function returns the number of struct mg_server_ports elements
+   This function returns the number of struct mg_server_port elements
    filled in, or <0 in case of an error. */
 CIVETWEB_API int mg_get_server_ports(const struct mg_context *ctx,
                                      int size,
-                                     struct mg_server_ports *ports);
+                                     struct mg_server_port *ports);
 
 
 #if defined(MG_LEGACY_INTERFACE) /* 2017-04-02 */
 /* Deprecated: Use mg_get_server_ports instead. */
-CIVETWEB_API size_t
-mg_get_ports(const struct mg_context *ctx, size_t size, int *ports, int *ssl);
+CIVETWEB_API size_t mg_get_ports(const struct mg_context *ctx,
+                                 size_t size,
+                                 int *ports,
+                                 int *ssl);
 #endif
 
 
@@ -863,15 +903,65 @@ CIVETWEB_API int mg_send_chunk(struct mg_connection *conn,
                                unsigned int chunk_len);
 
 
-/* Send contents of the entire file together with HTTP headers. */
+/* Send contents of the entire file together with HTTP headers.
+ * Parameters:
+ *   conn: Current connection information.
+ *   path: Full path to the file to send.
+ * This function has been superseded by mg_send_mime_file
+ */
 CIVETWEB_API void mg_send_file(struct mg_connection *conn, const char *path);
 
 
+/* Send contents of the file without HTTP headers.
+ * The code must send a valid HTTP response header before using this function.
+ *
+ * Parameters:
+ *   conn: Current connection information.
+ *   path: Full path to the file to send.
+ *
+ * Return:
+ *   < 0   Error
+ */
+CIVETWEB_API int mg_send_file_body(struct mg_connection *conn,
+                                   const char *path);
+
+
 /* Send HTTP error reply. */
-CIVETWEB_API void mg_send_http_error(struct mg_connection *conn,
-                                     int status_code,
-                                     PRINTF_FORMAT_STRING(const char *fmt),
-                                     ...) PRINTF_ARGS(3, 4);
+CIVETWEB_API int mg_send_http_error(struct mg_connection *conn,
+                                    int status_code,
+                                    PRINTF_FORMAT_STRING(const char *fmt),
+                                    ...) PRINTF_ARGS(3, 4);
+
+
+/* Send "HTTP 200 OK" response header.
+ * After calling this function, use mg_write or mg_send_chunk to send the
+ * response body.
+ * Parameters:
+ *   conn: Current connection handle.
+ *   mime_type: Set Content-Type for the following content.
+ *   content_length: Size of the following content, if content_length >= 0.
+ *                   Will set transfer-encoding to chunked, if set to -1.
+ * Return:
+ *   < 0   Error
+ */
+CIVETWEB_API int mg_send_http_ok(struct mg_connection *conn,
+                                 const char *mime_type,
+                                 long long content_length);
+
+
+/* Send "HTTP 30x" redirect response.
+ * The response has content-size zero: do not send any body data after calling
+ * this function.
+ * Parameters:
+ *   conn: Current connection handle.
+ *   target_url: New location.
+ *   redirect_code: HTTP redirect type. Could be 301, 302, 303, 307, 308.
+ * Return:
+ *   < 0   Error (-1 send error, -2 parameter error)
+ */
+CIVETWEB_API int mg_send_http_redirect(struct mg_connection *conn,
+                                       const char *target_url,
+                                       int redirect_code);
 
 
 /* Send HTTP digest access authentication request.
@@ -1048,7 +1138,7 @@ CIVETWEB_API int mg_get_cookie(const char *cookie,
 /* Download data from the remote web server.
      host: host name to connect to, e.g. "foo.com", or "10.12.40.1".
      port: port number, e.g. 80.
-     use_ssl: wether to use SSL connection.
+     use_ssl: whether to use SSL connection.
      error_buffer, error_buffer_size: error message placeholder.
      request_fmt,...: HTTP request.
    Return:
@@ -1121,7 +1211,8 @@ struct mg_form_data_handler {
 	 *   user_data: Value of the member user_data of mg_form_data_handler
 	 *
 	 * Return value:
-	 *   TODO: Needs to be defined.
+	 *   The return code determines how the server should continue processing
+	 *   the current request (See MG_FORM_FIELD_HANDLE_*).
 	 */
 	int (*field_get)(const char *key,
 	                 const char *value,
@@ -1142,7 +1233,8 @@ struct mg_form_data_handler {
 	 *   user_data: Value of the member user_data of mg_form_data_handler
 	 *
 	 * Return value:
-	 *   TODO: Needs to be defined.
+	 *   The return code determines how the server should continue processing
+	 *   the current request (See MG_FORM_FIELD_HANDLE_*).
 	 */
 	int (*field_store)(const char *path, long long file_size, void *user_data);
 
@@ -1156,7 +1248,7 @@ struct mg_form_data_handler {
 #if defined(MG_LEGACY_INTERFACE) /* 2017-10-05 */
 enum {
 	/* Skip this field (neither get nor store it). Continue with the
-     * next field. */
+	 * next field. */
 	FORM_FIELD_STORAGE_SKIP = 0x0,
 	/* Get the field value. */
 	FORM_FIELD_STORAGE_GET = 0x1,
@@ -1169,7 +1261,7 @@ enum {
 /* New nomenclature */
 enum {
 	/* Skip this field (neither get nor store it). Continue with the
-     * next field. */
+	 * next field. */
 	MG_FORM_FIELD_STORAGE_SKIP = 0x0,
 	/* Get the field value. */
 	MG_FORM_FIELD_STORAGE_GET = 0x1,
@@ -1178,6 +1270,18 @@ enum {
 	/* Stop parsing this request. Skip the remaining fields. */
 	MG_FORM_FIELD_STORAGE_ABORT = 0x10
 };
+
+/* Return values for "field_get" and "field_store" */
+enum {
+	/* Only "field_get": If there is more data in this field, get the next
+	 * chunk. Otherwise: handle the next field. */
+	MG_FORM_FIELD_HANDLE_GET = 0x1,
+	/* Handle the next field */
+	MG_FORM_FIELD_HANDLE_NEXT = 0x8,
+	/* Stop parsing this request */
+	MG_FORM_FIELD_HANDLE_ABORT = 0x10
+};
+
 
 /* Process form data.
  * Returns the number of fields handled, or < 0 in case of an error.
@@ -1310,6 +1414,7 @@ struct mg_client_options {
 	int port;
 	const char *client_cert;
 	const char *server_cert;
+	const char *host_name;
 	/* TODO: add more data */
 };
 
