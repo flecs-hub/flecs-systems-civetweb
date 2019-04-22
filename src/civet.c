@@ -127,8 +127,8 @@ bool eval_endpoints(EndpointEvalCtx *ctx) {
     bool handled = false;
     if (r_url[0] == '/') r_url ++;
 
-    EcsHttpEndpoint *buffer = ecs_vector_buffer(server_data->endpoints);
-    ecs_entity_t *entity_buffer = ecs_vector_buffer(server_data->endpoint_entities);
+    EcsHttpEndpoint *buffer = ecs_vector_first(server_data->endpoints);
+    ecs_entity_t *entity_buffer = ecs_vector_first(server_data->endpoint_entities);
     uint32_t i, count = ecs_vector_count(server_data->endpoints);
 
     for (i = 0; i < count; i ++) {
