@@ -47,7 +47,7 @@ typedef struct EndpointEvalCtx {
 } EndpointEvalCtx;
 
 static
-EcsHttpMethod MethodFromStr(
+EcsHttpMethod method_from_str(
     const char *method)
 {
     if (!strcmp(method, "GET")) return EcsHttpGet;
@@ -159,6 +159,8 @@ bool eval_endpoints(EndpointEvalCtx *ctx) {
                     ecs_os_mutex_lock(server_data->ecs_lock);
                 }
 
+                ecs_os_dbg("civet: 201: endpoint '/%s' matched", e_url);
+
                 handled = endpoint->action(world, entity, endpoint, request, &reply);
 
                 if (endpoint->synchronous) {
@@ -191,7 +193,7 @@ int CbOnRequest(
     void *cbdata)
 {
     const struct mg_request_info *req_info = mg_get_request_info(conn);
-    EcsHttpMethod method = MethodFromStr(req_info->request_method);
+    EcsHttpMethod method = method_from_str(req_info->request_method);
     CivetServerData *server_data = cbdata;
 
     EndpointEvalCtx eval_ctx = {
@@ -204,6 +206,10 @@ int CbOnRequest(
         .server_data = server_data
     };
 
+
+    ecs_os_dbg("civet: %s: uri=%s query=%s", 
+        req_info->request_method, req_info->local_uri, req_info->query_string);
+
     /* Evaluate request for all endpoints for this server */
     ecs_os_mutex_lock(server_data->endpoint_lock);
     bool handled = eval_endpoints(&eval_ctx);
@@ -211,6 +217,7 @@ int CbOnRequest(
 
     if (!handled) {
         do_reply(conn, 404, NULL, NULL);
+        ecs_os_dbg("civet: 404: no endpoint found");
     }
 
     return 1;
@@ -258,6 +265,8 @@ void CivetInit(ecs_rows_t *rows) {
         /* Add server object to entity */
         CivetServerData *server_data = ecs_os_malloc(sizeof(CivetServerData));
         ecs_assert(server_data != NULL, ECS_OUT_OF_MEMORY, NULL);
+
+        ecs_os_dbg("civet: starting server on port %u", server[i].port);
 
         server_data->world = world;
         server_data->server = mg_start(&callbacks, server_data, options);
