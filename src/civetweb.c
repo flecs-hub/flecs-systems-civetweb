@@ -351,6 +351,8 @@ _civet_clock_gettime(int clk_id, struct timespec *t)
 	return -1; /* EINVAL - Clock ID is unknown */
 }
 
+#include <time.h>
+
 /* if clock_gettime is declared, then __CLOCK_AVAILABILITY will be defined */
 #if defined(__CLOCK_AVAILABILITY)
 /* If we compiled with Mac OSX 10.12 or later, then clock_gettime will be
@@ -380,7 +382,6 @@ _civet_safe_clock_gettime(int clk_id, struct timespec *t)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 /********************************************************************/
 /* CivetWeb configuration defines */

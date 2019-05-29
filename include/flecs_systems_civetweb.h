@@ -1,7 +1,7 @@
 #ifndef FLECS_SYSTEMS_CIVETWEB_H
 #define FLECS_SYSTEMS_CIVETWEB_H
 
-#include "bake_config.h"
+#include <flecs-systems-civetweb/bake_config.h>
 
 #ifdef __cplusplus
 extern "C" {
