@@ -325,14 +325,18 @@ static
 ecs_entity_t find_server(
     ecs_world_t *world,
     ecs_entity_t ep,
-    ecs_entity_t TCivetServerComponent)
+    ecs_type_t TCivetServerComponent)
 {
-    ecs_entity_t e;
-    uint32_t i;
-
-    for (i = 0; (e = ecs_type_get_component(world, ecs_get_type(world, ep), i)); i ++) {
-        if (ecs_has(world, e, CivetServerComponent)) {
-            return e;
+    ecs_type_t type = ecs_get_type(world, ep);
+    ecs_entity_t *array = ecs_vector_first(type);
+    uint32_t i, count = ecs_vector_count(type);
+ 
+    for (i = 0; i < count; i ++) {
+        ecs_entity_t e = array[i];
+        if (e & ECS_CHILDOF) {
+            if (ecs_has(world, e & ECS_ENTITY_MASK, CivetServerComponent)) {
+                return e & ECS_ENTITY_MASK;
+            }
         }
     }
 
@@ -360,8 +364,7 @@ void CivetRegisterEndpoint(ecs_rows_t *rows) {
             *new_entity = entity;
             ecs_os_mutex_unlock(data->endpoint_lock);
         } else {
-            fprintf(stderr, 
-                "warning: no server found for endpoint '%s'\n", ep->url);
+            ecs_os_warn("no server found for endpoint '%s'", ep->url);
         }
     }
 }
@@ -374,8 +377,8 @@ void FlecsSystemsCivetwebImport(
     ECS_MODULE(world, FlecsSystemsCivetweb);
 
     ECS_COMPONENT(world, CivetServerComponent);
-    ECS_SYSTEM(world, CivetInit, EcsOnSet, EcsHttpServer, ID.CivetServerComponent, SYSTEM.EcsHidden);
-    ECS_SYSTEM(world, CivetRegisterEndpoint, EcsOnSet, EcsHttpEndpoint, ID.CivetServerComponent, SYSTEM.EcsHidden);
+    ECS_SYSTEM(world, CivetInit, EcsOnSet, EcsHttpServer, .CivetServerComponent, SYSTEM.EcsHidden);
+    ECS_SYSTEM(world, CivetRegisterEndpoint, EcsOnSet, EcsHttpEndpoint, .CivetServerComponent, SYSTEM.EcsHidden);
     ECS_SYSTEM(world, CivetDeinit, EcsOnRemove, CivetServerComponent, SYSTEM.EcsHidden);
     ECS_SYSTEM(world, CivetServer, EcsOnUpdate, CivetServerComponent, SYSTEM.EcsHidden);
 
