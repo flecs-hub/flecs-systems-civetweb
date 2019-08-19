@@ -351,6 +351,9 @@ _civet_clock_gettime(int clk_id, struct timespec *t)
 	return -1; /* EINVAL - Clock ID is unknown */
 }
 
+#ifdef __MACH__
+#include <time.h>
+#endif
 
 /* if clock_gettime is declared, then __CLOCK_AVAILABILITY will be defined */
 #if defined(__CLOCK_AVAILABILITY)
@@ -381,7 +384,11 @@ _civet_safe_clock_gettime(int clk_id, struct timespec *t)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef __MACH__
 #include <time.h>
+#endif
+
 /********************************************************************/
 /* CivetWeb configuration defines */
 /********************************************************************/
