@@ -382,5 +382,5 @@ void FlecsSystemsCivetwebImport(
     ECS_SYSTEM(world, CivetDeinit, EcsOnRemove, CivetServerComponent, SYSTEM.EcsHidden);
     ECS_SYSTEM(world, CivetServer, EcsOnUpdate, CivetServerComponent, SYSTEM.EcsHidden);
 
-    ECS_SET_ENTITY(handles, CivetServer);
+    ECS_SET_ENTITY(CivetServer);
 }
