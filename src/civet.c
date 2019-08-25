@@ -227,7 +227,7 @@ static
 void CivetInit(ecs_rows_t *rows) {
     ecs_world_t *world = rows->world;
     EcsHttpServer *server = ecs_column(rows, EcsHttpServer, 1);
-    ecs_type_t TCivetServerComponent = ecs_column_type(rows, 2);
+    ecs_entity_t ecs_entity(CivetServerComponent) = ecs_column_entity(rows, 2);
 
     int i;
     for (i = 0; i < rows->count; i ++) {
@@ -382,5 +382,5 @@ void FlecsSystemsCivetwebImport(
     ECS_SYSTEM(world, CivetDeinit, EcsOnRemove, CivetServerComponent, SYSTEM.EcsHidden);
     ECS_SYSTEM(world, CivetServer, EcsOnUpdate, CivetServerComponent, SYSTEM.EcsHidden);
 
-    ECS_SET_ENTITY(handles, CivetServer);
+    ECS_SET_ENTITY(CivetServer);
 }
