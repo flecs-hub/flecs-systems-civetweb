@@ -106,20 +106,21 @@ void do_reply(
     char *header,
     char *body)
 {
-    ut_strbuf buf = UT_STRBUF_INIT;
-    ut_strbuf_append(&buf, "HTTP/1.1 %d OK\r\nAccess-Control-Allow-Origin: *\r\n", status);
+    ecs_strbuf_t buf = ECS_STRBUF_INIT;
+    ecs_strbuf_append(&buf, "HTTP/1.1 %d OK\r\nAccess-Control-Allow-Origin: *\r\n", status);
     if (header) {
-        ut_strbuf_appendstr_zerocpy(&buf, header);
+        ecs_strbuf_appendstr_zerocpy(&buf, header);
     }
-    ut_strbuf_appendstr(&buf, "\r\n");
-    if (body) ut_strbuf_appendstr_zerocpy(&buf, body);
-    char *msg = ut_strbuf_get(&buf);
+    ecs_strbuf_appendstr(&buf, "\r\n");
+    if (body) ecs_strbuf_appendstr_zerocpy(&buf, body);
+    char *msg = ecs_strbuf_get(&buf);
     mg_write(conn, msg, strlen(msg));
+    free(msg);
 }
 
 static
 bool eval_endpoints(EndpointEvalCtx *ctx) {
-    EcsHttpReply reply = {.status = 201};
+    EcsHttpReply reply = {.status = 200};
     EcsHttpRequest *request = &ctx->request;
     CivetServerData *server_data = ctx->server_data;
     struct mg_connection *conn = request->ctx;
@@ -205,7 +206,6 @@ int CbOnRequest(
         },
         .server_data = server_data
     };
-
 
     ecs_os_dbg("civet: %s: uri=%s query=%s", 
         req_info->request_method, req_info->local_uri, req_info->query_string);
@@ -296,6 +296,7 @@ void CivetInit(ecs_rows_t *rows) {
 static
 void CivetDeinit(ecs_rows_t *rows) {
     CivetServerComponent *c = ecs_column(rows, CivetServerComponent, 1);
+
     int i;
     for (i = 0; i < rows->count; i ++) {
         CivetServerData *data = c[i].server_data;
