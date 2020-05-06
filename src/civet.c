@@ -4,15 +4,6 @@
 
 #define INIT_REQUEST_COUNT (8)
 
-
-static const ecs_vector_params_t endpoint_param = {
-    .element_size = sizeof(EcsHttpEndpoint)
-};
-
-static const ecs_vector_params_t entity_param = {
-    .element_size = sizeof(ecs_entity_t)
-};
-
 /* Server data allocated on heap (not in ECS). This ensures the pointer is
  * stable and cannot change due to data moving around. */
 typedef struct CivetServerData {
@@ -23,11 +14,7 @@ typedef struct CivetServerData {
      * not provide the option to manually control threading. */
     ecs_vector_t *endpoints;
     ecs_vector_t *endpoint_entities;
-	ecs_os_mutex_t endpoint_lock;
-
-    /* Lock and condition variable protecting access to ECS data */
-	ecs_os_mutex_t ecs_lock;
-	ecs_os_cond_t ecs_cond;
+    ecs_os_mutex_t endpoint_lock;
 
     /* Number of requests waiting */
     int requests_waiting;
@@ -156,8 +143,7 @@ bool eval_endpoints(EndpointEvalCtx *ctx) {
                 }
 
                 if (endpoint->synchronous) {
-                    ut_ainc(&server_data->requests_waiting);
-                    ecs_os_mutex_lock(server_data->ecs_lock);
+                    ecs_lock(world);
                 }
 
                 ecs_os_dbg("civet: 201: endpoint '/%s' matched", e_url);
@@ -165,10 +151,7 @@ bool eval_endpoints(EndpointEvalCtx *ctx) {
                 handled = endpoint->action(world, entity, endpoint, request, &reply);
 
                 if (endpoint->synchronous) {
-                    if (!ut_adec(&server_data->requests_waiting)) {
-                        ecs_os_cond_signal(server_data->ecs_cond);
-                    }
-                    ecs_os_mutex_unlock(server_data->ecs_lock);
+                    ecs_unlock(world);
                 }
 
                 if (handled) {
@@ -270,19 +253,15 @@ void CivetInit(ecs_rows_t *rows) {
 
         server_data->world = world;
         server_data->server = mg_start(&callbacks, server_data, options);
-        server_data->endpoints = ecs_vector_new(&endpoint_param, 0);
-        server_data->endpoint_entities = ecs_vector_new(&entity_param, 0);
+        server_data->endpoints = ecs_vector_new(EcsHttpEndpoint, 0);
+        server_data->endpoint_entities = ecs_vector_new(ecs_entity_t, 0);
         server_data->requests_waiting = 0;
 		server_data->endpoint_lock = ecs_os_mutex_new();
-		server_data->ecs_lock = ecs_os_mutex_new();
-		server_data->ecs_cond = ecs_os_cond_new();
 
         /* Add component with Civetweb data */
         ecs_set(world, rows->entities[i], CivetServerComponent, {
             .server_data = server_data
         });
-
-        ecs_os_mutex_lock(server_data->ecs_lock);
 
         /* Set handler for requests */
         mg_set_request_handler(server_data->server, "**", CbOnRequest, server_data);
@@ -301,24 +280,7 @@ void CivetDeinit(ecs_rows_t *rows) {
     for (i = 0; i < rows->count; i ++) {
         CivetServerData *data = c[i].server_data;
         mg_stop(data->server);
-        ecs_os_mutex_unlock(data->ecs_lock);
-        ecs_os_mutex_free(data->ecs_lock);
-        ecs_os_cond_free(data->ecs_cond);
         ecs_os_free(data);
-    }
-}
-
-static
-void CivetServer(ecs_rows_t *rows) {
-    CivetServerComponent *c = ecs_column(rows, CivetServerComponent, 1);
-    int i;
-    for (i = 0; i < rows->count; i++) {
-        CivetServerData *data = c[i].server_data;
-
-        if (data->requests_waiting) {
-            ecs_os_mutex_unlock(data->ecs_lock);
-            ecs_os_cond_wait(data->ecs_cond, data->ecs_lock);
-        }
     }
 }
 
@@ -326,7 +288,7 @@ static
 ecs_entity_t find_server(
     ecs_world_t *world,
     ecs_entity_t ep,
-    ecs_type_t TCivetServerComponent)
+    ecs_entity_t CivetServerComponent)
 {
     ecs_type_t type = ecs_get_type(world, ep);
     ecs_entity_t *array = ecs_vector_first(type);
@@ -335,7 +297,7 @@ ecs_entity_t find_server(
     for (i = 0; i < count; i ++) {
         ecs_entity_t e = array[i];
         if (e & ECS_CHILDOF) {
-            if (ecs_has(world, e & ECS_ENTITY_MASK, CivetServerComponent)) {
+            if (ecs_has_entity(world, e & ECS_ENTITY_MASK, CivetServerComponent)) {
                 return e & ECS_ENTITY_MASK;
             }
         }
@@ -347,21 +309,21 @@ ecs_entity_t find_server(
 static
 void CivetRegisterEndpoint(ecs_rows_t *rows) {
     EcsHttpEndpoint *ep = ecs_column(rows, EcsHttpEndpoint, 1);
-    ecs_type_t TCivetServerComponent = ecs_column_type(rows, 2);
+    ecs_entity_t server_component_handle = ecs_column_entity(rows, 2);
 
     int i;
     for (i = 0; i < rows->count; i ++) {
         ecs_entity_t entity = rows->entities[i];
 
-        ecs_entity_t server = find_server(rows->world, entity, TCivetServerComponent);
+        ecs_entity_t server = find_server(rows->world, entity, server_component_handle);
         if (server) {
-            CivetServerComponent *c = ecs_get_ptr(rows->world, server, CivetServerComponent);
+            CivetServerComponent *c = _ecs_get_ptr(rows->world, server, server_component_handle);
             CivetServerData *data = c->server_data;
 
             ecs_os_mutex_lock(data->endpoint_lock);
-            EcsHttpEndpoint *new_ep = ecs_vector_add(&data->endpoints, &endpoint_param);
+            EcsHttpEndpoint *new_ep = ecs_vector_add(&data->endpoints, EcsHttpEndpoint);
             *new_ep = ep[i];
-            ecs_entity_t *new_entity = ecs_vector_add(&data->endpoint_entities, &entity_param);
+            ecs_entity_t *new_entity = ecs_vector_add(&data->endpoint_entities, ecs_entity_t);
             *new_entity = entity;
             ecs_os_mutex_unlock(data->endpoint_lock);
         } else {
@@ -375,13 +337,13 @@ void FlecsSystemsCivetwebImport(
     int flags)
 {
     ECS_IMPORT(world, FlecsComponentsHttp, 0);
+    
     ECS_MODULE(world, FlecsSystemsCivetweb);
-
+    
     ECS_COMPONENT(world, CivetServerComponent);
     ECS_SYSTEM(world, CivetInit, EcsOnSet, EcsHttpServer, .CivetServerComponent, SYSTEM.EcsHidden);
     ECS_SYSTEM(world, CivetRegisterEndpoint, EcsOnSet, EcsHttpEndpoint, .CivetServerComponent, SYSTEM.EcsHidden);
     ECS_SYSTEM(world, CivetDeinit, EcsOnRemove, CivetServerComponent, SYSTEM.EcsHidden);
-    ECS_SYSTEM(world, CivetServer, EcsOnUpdate, CivetServerComponent, SYSTEM.EcsHidden);
 
-    ECS_SET_ENTITY(CivetServer);
+    ecs_enable_locking(world, true);
 }
