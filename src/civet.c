@@ -188,7 +188,10 @@ int CbOnRequest(
         req_info->request_method, req_info->local_uri, req_info->query_string);
 
     /* Evaluate request for all endpoints for this server */
+    ecs_begin_wait(server_data->world);
     ecs_lock(server_data->world);
+    ecs_end_wait(server_data->world);
+
     bool handled = eval_endpoints(&eval_ctx);
     ecs_unlock(server_data->world);
 
@@ -296,6 +299,20 @@ void CivetSet(ecs_iter_t *it) {
 }
 
 static
+void CivetUnset(ecs_iter_t *it) {
+    EcsCivetServer *civet_server = ecs_column(it, EcsCivetServer, 1);
+
+    int32_t i;
+    for (i = 0; i < it->count; i ++) {
+        CivetServerData *data = civet_server[i].server_data;
+        mg_stop(data->server);
+        ecs_vector_free(data->endpoints);
+        ecs_vector_free(data->endpoint_entities);
+        ecs_os_free(data);
+    }
+}
+
+static
 ecs_entity_t find_server(
     ecs_world_t *world,
     ecs_entity_t ep,
@@ -344,10 +361,9 @@ void CivetRegisterEndpoint(ecs_iter_t *it) {
 }
 
 void FlecsSystemsCivetwebImport(
-    ecs_world_t *world,
-    int flags)
+    ecs_world_t *world)
 {
-    ECS_IMPORT(world, FlecsComponentsHttp, 0);
+    ECS_IMPORT(world, FlecsComponentsHttp);
 
     ecs_set_name_prefix(world, "EcsCivet");
     
@@ -359,6 +375,10 @@ void FlecsSystemsCivetwebImport(
         flecs.components.http.Server,
         ?Server,
         SYSTEM:Hidden);
+
+    ECS_SYSTEM(world, CivetUnset, EcsUnSet,
+        Server,
+        SYSTEM:Hidden);        
 
     ECS_SYSTEM(world, CivetRegisterEndpoint, EcsOnSet, 
         flecs.components.http.Endpoint, 

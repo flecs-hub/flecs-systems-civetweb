@@ -21,18 +21,17 @@
 #include <flecs.h>
 #include <flecs_components_http.h>
 
-/* Headers of private dependencies */
-#ifdef flecs_systems_civetweb_EXPORT
-/* No dependencies */
-#endif
-
 /* Convenience macro for exporting symbols */
+#ifndef flecs_systems_civetweb_STATIC
 #if flecs_systems_civetweb_EXPORTS && (defined(_MSC_VER) || defined(__MINGW32__))
   #define FLECS_SYSTEMS_CIVETWEB_EXPORT __declspec(dllexport)
 #elif flecs_systems_civetweb_EXPORTS
   #define FLECS_SYSTEMS_CIVETWEB_EXPORT __attribute__((__visibility__("default")))
 #elif defined _MSC_VER
   #define FLECS_SYSTEMS_CIVETWEB_EXPORT __declspec(dllimport)
+#else
+  #define FLECS_SYSTEMS_CIVETWEB_EXPORT
+#endif
 #else
   #define FLECS_SYSTEMS_CIVETWEB_EXPORT
 #endif
