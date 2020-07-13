@@ -13,8 +13,7 @@ typedef struct FlecsSystemsCivetweb {
 
 FLECS_SYSTEMS_CIVETWEB_EXPORT
 void FlecsSystemsCivetwebImport(
-    ecs_world_t *world,
-    int flags);
+    ecs_world_t *world);
 
 #define FlecsSystemsCivetwebImportHandles(handles)\
     ECS_IMPORT_ENTITY(handles, CivetServer);
