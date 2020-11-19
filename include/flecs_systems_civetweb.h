@@ -11,7 +11,7 @@ typedef struct FlecsSystemsCivetweb {
     ECS_DECLARE_ENTITY(CivetServer);
 } FlecsSystemsCivetweb;
 
-FLECS_SYSTEMS_CIVETWEB_EXPORT
+FLECS_SYSTEMS_CIVETWEB_API
 void FlecsSystemsCivetwebImport(
     ecs_world_t *world);
 

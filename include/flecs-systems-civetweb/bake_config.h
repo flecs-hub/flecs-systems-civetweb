@@ -24,16 +24,16 @@
 /* Convenience macro for exporting symbols */
 #ifndef flecs_systems_civetweb_STATIC
 #if flecs_systems_civetweb_EXPORTS && (defined(_MSC_VER) || defined(__MINGW32__))
-  #define FLECS_SYSTEMS_CIVETWEB_EXPORT __declspec(dllexport)
+  #define FLECS_SYSTEMS_CIVETWEB_API __declspec(dllexport)
 #elif flecs_systems_civetweb_EXPORTS
-  #define FLECS_SYSTEMS_CIVETWEB_EXPORT __attribute__((__visibility__("default")))
+  #define FLECS_SYSTEMS_CIVETWEB_API __attribute__((__visibility__("default")))
 #elif defined _MSC_VER
-  #define FLECS_SYSTEMS_CIVETWEB_EXPORT __declspec(dllimport)
+  #define FLECS_SYSTEMS_CIVETWEB_API __declspec(dllimport)
 #else
-  #define FLECS_SYSTEMS_CIVETWEB_EXPORT
+  #define FLECS_SYSTEMS_CIVETWEB_API
 #endif
 #else
-  #define FLECS_SYSTEMS_CIVETWEB_EXPORT
+  #define FLECS_SYSTEMS_CIVETWEB_API
 #endif
 
 #endif

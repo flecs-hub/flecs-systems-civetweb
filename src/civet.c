@@ -221,7 +221,7 @@ void CivetSet(ecs_iter_t *it) {
 
     EcsHttpServer *server = ecs_column(it, EcsHttpServer, 1);
     EcsCivetServer *civet_server = ecs_column(it, EcsCivetServer, 2);
-    ecs_entity_t ecs_entity(EcsCivetServer) = ecs_column_entity(it, 2);
+    ecs_entity_t ecs_typeid(EcsCivetServer) = ecs_column_entity(it, 2);
 
     int i;
     for (i = 0; i < it->count; i ++) {
@@ -325,8 +325,8 @@ ecs_entity_t find_server(
     for (i = 0; i < count; i ++) {
         ecs_entity_t e = array[i];
         if (e & ECS_CHILDOF) {
-            if (ecs_has_entity(world, e & ECS_ENTITY_MASK, server)) {
-                return e & ECS_ENTITY_MASK;
+            if (ecs_has_entity(world, e & ECS_COMPONENT_MASK, server)) {
+                return e & ECS_COMPONENT_MASK;
             }
         }
     }
