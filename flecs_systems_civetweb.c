@@ -1665,7 +1665,7 @@ bool eval_endpoints(EndpointEvalCtx *ctx) {
 
     for (i = 0; i < count; i ++) {
         EcsHttpEndpoint *endpoint = &buffer[i];
-        char *e_url = endpoint->url;
+        const char *e_url = endpoint->url;
         if (e_url[0] == '/') e_url ++;
         uint32_t e_url_len = strlen(e_url);
 
