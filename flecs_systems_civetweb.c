@@ -1885,7 +1885,7 @@ void CivetRegisterEndpoint(ecs_iter_t *it) {
     for (i = 0; i < it->count; i ++) {
         ecs_entity_t entity = it->entities[i];
 
-        ecs_entity_t server = find_server(it->world, entity, server_component_handle);
+        ecs_entity_t server = ecs_get_object(it->world, entity, EcsChildOf, 0);
         if (server) {
             const EcsCivetServer *c = ecs_get_w_entity(
                 it->world, server, server_component_handle);
