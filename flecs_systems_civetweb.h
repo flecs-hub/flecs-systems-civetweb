@@ -1,3 +1,4 @@
+// Comment out this line when using as DLL
 #define flecs_systems_civetweb_STATIC
 #ifndef FLECS_SYSTEMS_CIVETWEB_H
 #define FLECS_SYSTEMS_CIVETWEB_H

@@ -1747,7 +1747,7 @@ int CbOnRequest(
 
 static
 void CivetDeinit(ecs_iter_t *it) {
-    EcsCivetServer *c = ecs_column(it, EcsCivetServer, 1);
+    EcsCivetServer *c = ecs_term(it, EcsCivetServer, 1);
 
     int i;
     for (i = 0; i < it->count; i ++) {
@@ -1761,9 +1761,9 @@ static
 void CivetSet(ecs_iter_t *it) {
     ecs_world_t *world = it->world;
 
-    EcsHttpServer *server = ecs_column(it, EcsHttpServer, 1);
-    EcsCivetServer *civet_server = ecs_column(it, EcsCivetServer, 2);
-    ecs_entity_t ecs_typeid(EcsCivetServer) = ecs_column_entity(it, 2);
+    EcsHttpServer *server = ecs_term(it, EcsHttpServer, 1);
+    EcsCivetServer *civet_server = ecs_term(it, EcsCivetServer, 2);
+    ecs_entity_t ecs_id(EcsCivetServer) = ecs_term_id(it, 2);
 
     int i;
     for (i = 0; i < it->count; i ++) {
@@ -1842,7 +1842,7 @@ void CivetSet(ecs_iter_t *it) {
 
 static
 void CivetUnset(ecs_iter_t *it) {
-    EcsCivetServer *civet_server = ecs_column(it, EcsCivetServer, 1);
+    EcsCivetServer *civet_server = ecs_term(it, EcsCivetServer, 1);
 
     int32_t i;
     for (i = 0; i < it->count; i ++) {
@@ -1855,41 +1855,18 @@ void CivetUnset(ecs_iter_t *it) {
 }
 
 static
-ecs_entity_t find_server(
-    ecs_world_t *world,
-    ecs_entity_t ep,
-    ecs_entity_t server)
-{
-    ecs_type_t type = ecs_get_type(world, ep);
-    ecs_entity_t *array = ecs_vector_first(type, ecs_entity_t);
-    uint32_t i, count = ecs_vector_count(type);
- 
-    for (i = 0; i < count; i ++) {
-        ecs_entity_t e = array[i];
-        if (e & ECS_CHILDOF) {
-            if (ecs_has_entity(world, e & ECS_COMPONENT_MASK, server)) {
-                return e & ECS_COMPONENT_MASK;
-            }
-        }
-    }
-
-    return 0;
-}
-
-static
 void CivetRegisterEndpoint(ecs_iter_t *it) {
-    EcsHttpEndpoint *ep = ecs_column(it, EcsHttpEndpoint, 1);
-    ecs_entity_t server_component_handle = ecs_column_entity(it, 2);
+    EcsHttpEndpoint *ep = ecs_term(it, EcsHttpEndpoint, 1);
+    ecs_entity_t ecs_id(EcsCivetServer) = ecs_term_id(it, 2);
+    ecs_world_t *world = it->world;
 
     int i;
     for (i = 0; i < it->count; i ++) {
         ecs_entity_t entity = it->entities[i];
 
-        ecs_entity_t server = find_server(it->world, entity, server_component_handle);
+        ecs_entity_t server = ecs_get_object(world, entity, 0, EcsChildOf);
         if (server) {
-            const EcsCivetServer *c = ecs_get_w_entity(
-                it->world, server, server_component_handle);
-
+            const EcsCivetServer *c = ecs_get(world, server, EcsCivetServer);
             CivetServerData *data = c->server_data;
 
             EcsHttpEndpoint *new_ep = ecs_vector_add(&data->endpoints, EcsHttpEndpoint);
